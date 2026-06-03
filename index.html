@@ -18,6 +18,7 @@
       --metro: #6f42c1;
       --park: #0f8b8d;
       --recommend: #d93025;
+      --candidate: #c2410c;
       --shadow: 0 12px 30px rgba(24, 39, 75, 0.16);
     }
 
@@ -130,6 +131,42 @@
       width: 15px;
       height: 15px;
       margin: 0;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr 112px;
+      gap: 8px;
+      align-items: center;
+      padding: 0 12px 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .control-row select {
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+    }
+
+    .candidate-summary {
+      margin: 0 12px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 10px;
+      background: #fbfcfe;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .candidate-summary strong {
+      color: var(--text);
+      font-size: 14px;
     }
 
     .dot {
@@ -304,6 +341,16 @@
       font-weight: 800;
     }
 
+    .marker-candidate {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--candidate);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
     .leaflet-control-zoom {
       border: 0 !important;
       box-shadow: var(--shadow);
@@ -351,10 +398,24 @@
         <div class="layer-grid">
           <label class="layer"><input type="checkbox" data-layer="boundary" checked><span style="width:20px;border-top:2px solid #7d8da6;display:inline-block"></span>행정경계</label>
           <label class="layer"><input type="checkbox" data-layer="recommend" checked><span class="dot" style="background:var(--recommend)"></span>추천 후보</label>
+          <label class="layer"><input type="checkbox" data-layer="candidate" checked><span class="dot" style="background:var(--candidate)"></span>선택 동 후보</label>
+          <label class="layer"><input type="checkbox" data-layer="service" checked><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>서비스 반경</label>
           <label class="layer"><input type="checkbox" data-layer="trash" checked><span class="dot" style="background:var(--trash)"></span>쓰레기통</label>
           <label class="layer"><input type="checkbox" data-layer="bus"><span class="dot" style="background:var(--bus)"></span>버스정류장</label>
           <label class="layer"><input type="checkbox" data-layer="metro" checked><span class="dot" style="background:var(--metro)"></span>지하철역</label>
           <label class="layer"><input type="checkbox" data-layer="park" checked><span class="dot" style="background:var(--park)"></span>공원</label>
+        </div>
+        <div class="control-row">
+          <span>기존 쓰레기통 서비스 반경</span>
+          <select id="radiusSelect" aria-label="서비스 반경">
+            <option value="150">150m</option>
+            <option value="200" selected>200m</option>
+            <option value="250">250m</option>
+            <option value="300">300m</option>
+          </select>
+        </div>
+        <div class="candidate-summary" id="candidateSummary">
+          동을 선택하면 반경별 추천 후보 개수가 표시됩니다.
         </div>
       </section>
 
@@ -369,7 +430,9 @@
       <div class="legend">
         <b>추천 후보 해석</b>
         <div class="legend-row"><span class="dot" style="background:var(--recommend)"></span>종합 Top 5와 비화곡권 보완 후보</div>
-        <div class="legend-row"><span style="width:20px;border-top:2px dashed #1967d2;display:inline-block"></span>선택 동 점선 윤곽</div>
+        <div class="legend-row"><span class="dot" style="background:var(--candidate)"></span>주요시설 중심 설치 후보</div>
+        <div class="legend-row"><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>선택 동 기존 쓰레기통 서비스 반경</div>
+        <div class="legend-row"><span style="width:20px;border-top:2px dashed #1967d2;display:inline-block"></span>선택 행정동 경계</div>
         <div class="legend-row"><span class="dot" style="background:var(--trash)"></span>기존 설치 쓰레기통</div>
         <div class="legend-row"><span class="dot" style="background:var(--bus)"></span>버스정류장</div>
         <div class="legend-row"><span class="dot" style="background:var(--metro)"></span>지하철역</div>
@@ -391,6 +454,10 @@
       preferCanvas: true,
       zoomControl: true
     }).setView(data.meta.center, 13);
+    map.createPane("selectedBoundaryPane");
+    map.getPane("selectedBoundaryPane").style.zIndex = 655;
+    map.createPane("serviceRadiusPane");
+    map.getPane("serviceRadiusPane").style.zIndex = 430;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -400,6 +467,8 @@
     const layers = {
       boundary: L.layerGroup().addTo(map),
       recommend: L.layerGroup().addTo(map),
+      candidate: L.layerGroup().addTo(map),
+      service: L.layerGroup().addTo(map),
       trash: L.layerGroup().addTo(map),
       bus: L.layerGroup(),
       metro: L.layerGroup().addTo(map),
@@ -407,6 +476,7 @@
     };
     const highlightLayer = L.layerGroup().addTo(map);
     const boundaryByDong = new Map();
+    let activeDongCode = null;
 
     boundaries.features.forEach((feature) => {
       const code = String(feature.properties.dong_code);
@@ -416,8 +486,8 @@
     const markerIcon = (className, html = "") => L.divIcon({
       className: "",
       html: `<div class="marker ${className}">${html}</div>`,
-      iconSize: className === "marker-rec" ? [31, 31] : [16, 16],
-      iconAnchor: className === "marker-rec" ? [15, 15] : [8, 8]
+      iconSize: className === "marker-rec" ? [31, 31] : [18, 18],
+      iconAnchor: className === "marker-rec" ? [15, 15] : [9, 9]
     });
 
     const popup = (title, rows) => {
@@ -477,6 +547,184 @@
         .addTo(layers.recommend);
     });
 
+    const toRad = (deg) => deg * Math.PI / 180;
+    const distanceMeters = (a, b) => {
+      const R = 6371000;
+      const dLat = toRad(b.latitude - a.latitude);
+      const dLng = toRad(b.longitude - a.longitude);
+      const lat1 = toRad(a.latitude);
+      const lat2 = toRad(b.latitude);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    };
+
+    const nearestTrash = (facility) => {
+      let nearest = null;
+      let distance = Infinity;
+      data.trash.forEach((trash) => {
+        const d = distanceMeters(facility, trash);
+        if (d < distance) {
+          distance = d;
+          nearest = trash;
+        }
+      });
+      return { nearest, distance };
+    };
+
+    const resultByDong = new Map(data.results.map((d) => [String(d.dong_code), d]));
+    const targetDongCodes = new Set(data.results
+      .filter((d) => Number(d.priority_rank) <= 10)
+      .map((d) => String(d.dong_code)));
+    let installCandidates = [];
+    let allFacilityCandidates = [];
+    let currentSelectedCandidates = [];
+
+    const facilityRows = [
+      ...data.busStops.map((d) => ({ ...d, facilityType: "버스정류장", facilityName: d.stop_name || d.node_id })),
+      ...data.metro.map((d) => ({ ...d, facilityType: "지하철역", facilityName: `${d.station_name || ""}${d.line ? ` (${d.line}호선)` : ""}` })),
+      ...data.parks.map((d) => ({ ...d, facilityType: "공원", facilityName: d.park_name }))
+    ];
+
+    const buildCandidates = () => {
+      const radius = Number(document.getElementById("radiusSelect").value);
+      allFacilityCandidates = facilityRows
+        .filter((facility) => targetDongCodes.has(String(facility.dong_code)))
+        .map((facility) => {
+          const near = nearestTrash(facility);
+          const result = resultByDong.get(String(facility.dong_code));
+          return {
+            ...facility,
+            nearestTrashDistance: near.distance,
+            nearestTrashId: near.nearest?.trash_location_id,
+            priorityRank: result?.priority_rank ?? 999,
+            priorityScore: result?.priority_score ?? 0,
+            outsideService: near.distance > radius
+          };
+        });
+      installCandidates = allFacilityCandidates
+        .filter((candidate) => candidate.outsideService)
+        .sort((a, b) => a.priorityRank - b.priorityRank || b.nearestTrashDistance - a.nearestTrashDistance)
+        .slice(0, 70);
+    };
+
+    const updateCandidateSummary = (dongCode, total, shown, fallbackMode = false) => {
+      const summary = document.getElementById("candidateSummary");
+      const radius = Number(document.getElementById("radiusSelect").value);
+      const dong = data.results.find((d) => String(d.dong_code) === String(dongCode));
+      if (!dongCode || !dong) {
+        summary.textContent = "동을 선택하면 반경별 추천 후보 개수가 표시됩니다.";
+        return;
+      }
+      if (fallbackMode) {
+        summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 주요시설 후보가 없어, 반경 내 최장거리 주요시설 ${shown}개를 표시합니다.`;
+        return;
+      }
+      summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 주요시설 ${total}개를 순차 배치 후보 ${shown}개로 보완합니다.`;
+    };
+
+    const nearestCoverageDistance = (facility, coveragePoints) => {
+      let distance = Infinity;
+      coveragePoints.forEach((point) => {
+        distance = Math.min(distance, distanceMeters(facility, point));
+      });
+      return distance;
+    };
+
+    const selectGreedyCandidates = (dongCode) => {
+      const radius = Number(document.getElementById("radiusSelect").value);
+      const candidateSpacing = radius * 2.1;
+      const pool = allFacilityCandidates
+        .filter((d) => String(d.dong_code) === String(dongCode))
+        .map((d) => ({ ...d }));
+      const coveragePoints = data.trash.map((trash) => ({
+        latitude: Number(trash.latitude),
+        longitude: Number(trash.longitude)
+      }));
+      const initialOutsideCount = pool.filter((facility) => nearestCoverageDistance(facility, coveragePoints) > radius).length;
+      const selected = [];
+
+      while (pool.length && selected.length < 18) {
+        let bestIndex = -1;
+        let bestDistance = -1;
+        pool.forEach((facility, index) => {
+          const distance = nearestCoverageDistance(facility, coveragePoints);
+          if (distance > bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+          }
+        });
+
+        if (bestDistance <= radius) break;
+
+        const chosen = {
+          ...pool.splice(bestIndex, 1)[0],
+          nearestTrashDistance: bestDistance,
+          sequence: selected.length + 1
+        };
+        selected.push(chosen);
+        coveragePoints.push({
+          latitude: Number(chosen.latitude),
+          longitude: Number(chosen.longitude)
+        });
+        for (let i = pool.length - 1; i >= 0; i--) {
+          if (distanceMeters(pool[i], chosen) < candidateSpacing) {
+            pool.splice(i, 1);
+          }
+        }
+      }
+
+      return { selected, initialOutsideCount };
+    };
+
+    const selectSpacedFallbackCandidates = (dongCode) => {
+      const radius = Number(document.getElementById("radiusSelect").value);
+      const candidateSpacing = radius * 2.1;
+      const sorted = allFacilityCandidates
+        .filter((d) => String(d.dong_code) === String(dongCode))
+        .sort((a, b) => b.nearestTrashDistance - a.nearestTrashDistance);
+      const selected = [];
+
+      for (const candidate of sorted) {
+        const tooClose = selected.some((picked) => distanceMeters(candidate, picked) < candidateSpacing);
+        if (!tooClose) {
+          selected.push({ ...candidate, fallbackCandidate: true, sequence: selected.length + 1 });
+        }
+        if (selected.length >= 4) break;
+      }
+
+      return selected;
+    };
+
+    const renderCandidateLayer = (dongCode = null) => {
+      layers.candidate.clearLayers();
+      buildCandidates();
+      if (!dongCode) {
+        currentSelectedCandidates = [];
+        updateCandidateSummary(null, 0, 0);
+        return;
+      }
+      const greedy = selectGreedyCandidates(dongCode);
+      const selected = greedy.selected.length
+        ? greedy.selected
+        : selectSpacedFallbackCandidates(dongCode);
+      currentSelectedCandidates = selected;
+
+      updateCandidateSummary(dongCode, greedy.initialOutsideCount, selected.length, !greedy.selected.length);
+
+      selected.forEach((d) => {
+        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-candidate", d.sequence || "") })
+          .bindPopup(popup(`${d.facilityName}`, [
+            ["추천 순서", d.sequence ? `${d.sequence}번째` : "보완 후보"],
+            ["후보 유형", d.facilityType],
+            ["행정동", d.dong_name],
+            ["종합 순위", `${d.priorityRank}위`],
+            ["최근접 쓰레기통", `${Math.round(d.nearestTrashDistance)}m`],
+            ["판단", d.fallbackCandidate ? "반경 내 최장거리 주요시설" : "서비스 반경 밖 주요시설"]
+          ]))
+          .addTo(layers.candidate);
+      });
+    };
+
     L.geoJSON(boundaries, {
       style: {
         color: "#7d8da6",
@@ -530,7 +778,10 @@
     };
 
     const showDongOutline = (dong) => {
+      activeDongCode = String(dong.dong_code);
       highlightLayer.clearLayers();
+      layers.service.clearLayers();
+      renderCandidateLayer(dong.dong_code);
       document.querySelectorAll(".rank-item.active").forEach((el) => el.classList.remove("active"));
       const active = document.querySelector(`[data-dong-code="${dong.dong_code}"]`);
       if (active) active.classList.add("active");
@@ -539,18 +790,48 @@
       if (boundary) {
         const selected = L.geoJSON(boundary, {
           style: {
+            pane: "selectedBoundaryPane",
             color: "#1967d2",
             weight: 3,
             dashArray: "8 7",
             fill: true,
             fillColor: "#1967d2",
-            fillOpacity: 0.08
+            fillOpacity: 0.04
           }
         }).bindPopup(popup(`${dong.dong_name} 행정동 경계`, [
           ["종합 순위", `${dong.priority_rank}위`],
           ["점수", Number(dong.priority_score).toFixed(2)],
           ["표시 기준", "행정동 GeoJSON 경계"]
         ])).addTo(highlightLayer);
+        const radius = Number(document.getElementById("radiusSelect").value);
+        data.trash
+          .filter((trash) => String(trash.dong_code) === String(dong.dong_code))
+          .forEach((trash) => {
+            L.circle([trash.latitude, trash.longitude], {
+              radius,
+              pane: "serviceRadiusPane",
+              color: "#2f7d32",
+              weight: 1.4,
+              dashArray: "5 6",
+              fillColor: "#2f7d32",
+              fillOpacity: 0.045,
+              opacity: 0.75
+            }).addTo(layers.service);
+          });
+        currentSelectedCandidates.forEach((candidate) => {
+          if (candidate.fallbackCandidate) return;
+          L.circle([candidate.latitude, candidate.longitude], {
+            radius,
+            pane: "serviceRadiusPane",
+            color: "#c2410c",
+            weight: 2.2,
+            dashArray: "7 5",
+            fillColor: "#c2410c",
+            fillOpacity: 0.075,
+            opacity: 0.95
+          }).addTo(layers.service);
+        });
+        selected.bringToFront();
         map.flyToBounds(selected.getBounds().pad(0.12), { duration: 0.65, maxZoom: 15 });
         return;
       }
@@ -598,6 +879,17 @@
       });
     });
 
+    document.getElementById("radiusSelect").addEventListener("change", () => {
+      if (activeDongCode) {
+        const dong = data.results.find((d) => String(d.dong_code) === activeDongCode);
+        if (dong) showDongOutline(dong);
+      } else {
+        renderCandidateLayer();
+      }
+    });
+
+    renderCandidateLayer();
+
     document.getElementById("statTrash").textContent = fmt.format(data.trash.length);
     document.getElementById("statBus").textContent = fmt.format(data.busStops.length);
     document.getElementById("statMetro").textContent = fmt.format(data.metro.length);
@@ -621,8 +913,9 @@
           <div class="rank-meta">
             <span>민원 ${fmt.format(d.complaint_count)}건</span>
             <span>쓰레기통 ${fmt.format(d.total_bin_count)}개</span>
-            <span>유동인구 ${fmt.format(d.yearly_avg_floating_population)}</span>
-            <span>접근거리 ${Number(d.weighted_access_distance).toFixed(1)}m</span>
+            <span>연평균 유동인구 ${fmt.format(d.yearly_avg_floating_population)}</span>
+            <span>상권 점포 ${fmt.format(d.commercial_store_count || 0)}개</span>
+            <span>주요시설 거리 ${Number(d.weighted_access_distance).toFixed(1)}m</span>
           </div>
           <div class="bar"><span style="width:${Math.max(4, Number(d.priority_score) / scoreMax * 100)}%"></span></div>
         `;
