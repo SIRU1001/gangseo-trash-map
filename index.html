@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>강서구 쓰레기통 설치 우선지역 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1d2430;
+      --muted: #687385;
+      --line: #d8dee8;
+      --accent: #1967d2;
+      --trash: #2f7d32;
+      --bus: #f59f00;
+      --metro: #6f42c1;
+      --park: #0f8b8d;
+      --recommend: #d93025;
+      --shadow: 0 12px 30px rgba(24, 39, 75, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, "Malgun Gothic", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      height: 100vh;
+      min-height: 640px;
+    }
+
+    aside {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      z-index: 2;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+
+    .subtitle {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+
+    .stat b {
+      display: block;
+      font-size: 20px;
+      line-height: 1.1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 12px 8px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0 12px 12px;
+    }
+
+    label.layer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 8px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    label.layer input {
+      width: 15px;
+      height: 15px;
+      margin: 0;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+    .rank-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 0 12px 12px;
+    }
+
+    .rank-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .rank-item:hover {
+      border-color: #a7bddc;
+      background: #f8fbff;
+    }
+
+    .rank-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .score {
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rank-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .bar {
+      height: 7px;
+      margin-top: 9px;
+      border-radius: 999px;
+      background: #e8edf5;
+      overflow: hidden;
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #f9ab00, #d93025);
+    }
+
+    .rank-item.active {
+      border-color: var(--accent);
+      background: #eef5ff;
+      box-shadow: 0 0 0 2px rgba(25, 103, 210, 0.12);
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      background: #dfe7ef;
+    }
+
+    .legend {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 500;
+      width: 250px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: var(--shadow);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .legend b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .leaflet-popup-content {
+      min-width: 210px;
+      margin: 12px 14px;
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .popup-title {
+      margin-bottom: 6px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .popup-kv {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr);
+      gap: 3px 8px;
+      color: #2f3947;
+      font-size: 12px;
+    }
+
+    .marker {
+      display: grid;
+      place-items: center;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    }
+
+    .marker-trash {
+      width: 15px;
+      height: 15px;
+      background: var(--trash);
+    }
+
+    .marker-bus {
+      width: 11px;
+      height: 11px;
+      background: var(--bus);
+    }
+
+    .marker-metro {
+      width: 15px;
+      height: 15px;
+      background: var(--metro);
+    }
+
+    .marker-park {
+      width: 15px;
+      height: 15px;
+      background: var(--park);
+    }
+
+    .marker-rec {
+      width: 31px;
+      height: 31px;
+      background: var(--recommend);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .leaflet-control-zoom {
+      border: 0 !important;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: 42vh 58vh;
+      }
+
+      aside {
+        order: 2;
+        border-right: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      main {
+        order: 1;
+      }
+
+      .legend {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <header>
+        <h1>강서구 쓰레기통 설치 우선지역</h1>
+        <p class="subtitle">AHP식 우선순위, K-means 유형, 주요 시설 최단거리 분석 결과</p>
+      </header>
+
+      <section class="stat-grid" aria-label="데이터 요약">
+        <div class="stat"><b id="statTrash">0</b><span>설치 쓰레기통 위치</span></div>
+        <div class="stat"><b id="statBus">0</b><span>버스정류장</span></div>
+        <div class="stat"><b id="statMetro">0</b><span>지하철역</span></div>
+        <div class="stat"><b id="statPark">0</b><span>공원</span></div>
+      </section>
+
+      <section class="panel" aria-label="지도 레이어">
+        <div class="panel-title">지도 레이어</div>
+        <div class="layer-grid">
+          <label class="layer"><input type="checkbox" data-layer="boundary" checked><span style="width:20px;border-top:2px solid #7d8da6;display:inline-block"></span>행정경계</label>
+          <label class="layer"><input type="checkbox" data-layer="recommend" checked><span class="dot" style="background:var(--recommend)"></span>추천 후보</label>
+          <label class="layer"><input type="checkbox" data-layer="trash" checked><span class="dot" style="background:var(--trash)"></span>쓰레기통</label>
+          <label class="layer"><input type="checkbox" data-layer="bus"><span class="dot" style="background:var(--bus)"></span>버스정류장</label>
+          <label class="layer"><input type="checkbox" data-layer="metro" checked><span class="dot" style="background:var(--metro)"></span>지하철역</label>
+          <label class="layer"><input type="checkbox" data-layer="park" checked><span class="dot" style="background:var(--park)"></span>공원</label>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="우선순위">
+        <div class="panel-title">종합 우선순위</div>
+        <div class="rank-list" id="rankList"></div>
+      </section>
+    </aside>
+
+    <main>
+      <div id="map"></div>
+      <div class="legend">
+        <b>추천 후보 해석</b>
+        <div class="legend-row"><span class="dot" style="background:var(--recommend)"></span>종합 Top 5와 비화곡권 보완 후보</div>
+        <div class="legend-row"><span style="width:20px;border-top:2px dashed #1967d2;display:inline-block"></span>선택 동 점선 윤곽</div>
+        <div class="legend-row"><span class="dot" style="background:var(--trash)"></span>기존 설치 쓰레기통</div>
+        <div class="legend-row"><span class="dot" style="background:var(--bus)"></span>버스정류장</div>
+        <div class="legend-row"><span class="dot" style="background:var(--metro)"></span>지하철역</div>
+        <div class="legend-row"><span class="dot" style="background:var(--park)"></span>공원</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./data.js"></script>
+  <script src="./boundaries.js"></script>
+  <script>
+    const data = window.GANGSEO_DATA;
+    const boundaries = window.GANGSEO_BOUNDARIES;
+    const fmt = new Intl.NumberFormat("ko-KR");
+    const scoreMax = Math.max(...data.results.map((d) => Number(d.priority_score)));
+
+    const map = L.map("map", {
+      preferCanvas: true,
+      zoomControl: true
+    }).setView(data.meta.center, 13);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap"
+    }).addTo(map);
+
+    const layers = {
+      boundary: L.layerGroup().addTo(map),
+      recommend: L.layerGroup().addTo(map),
+      trash: L.layerGroup().addTo(map),
+      bus: L.layerGroup(),
+      metro: L.layerGroup().addTo(map),
+      park: L.layerGroup().addTo(map)
+    };
+    const highlightLayer = L.layerGroup().addTo(map);
+    const boundaryByDong = new Map();
+
+    boundaries.features.forEach((feature) => {
+      const code = String(feature.properties.dong_code);
+      boundaryByDong.set(code, feature);
+    });
+
+    const markerIcon = (className, html = "") => L.divIcon({
+      className: "",
+      html: `<div class="marker ${className}">${html}</div>`,
+      iconSize: className === "marker-rec" ? [31, 31] : [16, 16],
+      iconAnchor: className === "marker-rec" ? [15, 15] : [8, 8]
+    });
+
+    const popup = (title, rows) => {
+      const body = rows.map(([k, v]) => `<div>${k}</div><div>${v ?? ""}</div>`).join("");
+      return `<div class="popup-title">${title}</div><div class="popup-kv">${body}</div>`;
+    };
+
+    data.trash.forEach((d) => {
+      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-trash") })
+        .bindPopup(popup(d.install_place || "쓰레기통", [
+          ["행정동", d.dong_name],
+          ["설치지점", d.install_point],
+          ["종류", d.trash_type],
+          ["형태", d.bin_shape],
+          ["개수", d.bin_count]
+        ]))
+        .addTo(layers.trash);
+    });
+
+    data.busStops.forEach((d) => {
+      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-bus") })
+        .bindPopup(popup(d.stop_name || "버스정류장", [
+          ["행정동", d.dong_name],
+          ["정류장 ID", d.node_id]
+        ]))
+        .addTo(layers.bus);
+    });
+
+    data.metro.forEach((d) => {
+      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-metro") })
+        .bindPopup(popup(d.station_name || "지하철역", [
+          ["행정동", d.dong_name],
+          ["노선", d.line],
+          ["역 ID", d.station_id]
+        ]))
+        .addTo(layers.metro);
+    });
+
+    data.parks.forEach((d) => {
+      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-park") })
+        .bindPopup(popup(d.park_name || "공원", [
+          ["행정동", d.dong_name],
+          ["면적", `${fmt.format(Number(d.park_area || 0))}㎡`],
+          ["주소", d.park_address]
+        ]))
+        .addTo(layers.park);
+    });
+
+    data.recommendations.forEach((d) => {
+      const rank = d.type === "종합 우선" ? d.priority_rank : "보";
+      L.marker([d.lat, d.lng], { icon: markerIcon("marker-rec", rank) })
+        .bindPopup(popup(`${d.dong_name} ${d.type}`, [
+          ["종합 순위", `${d.priority_rank}위`],
+          ["점수", Number(d.priority_score).toFixed(2)],
+          ["근거", d.reason]
+        ]))
+        .addTo(layers.recommend);
+    });
+
+    L.geoJSON(boundaries, {
+      style: {
+        color: "#7d8da6",
+        weight: 1.2,
+        opacity: 0.85,
+        fillOpacity: 0.025
+      },
+      onEachFeature: (feature, layer) => {
+        const code = String(feature.properties.dong_code);
+        const result = data.results.find((d) => String(d.dong_code) === code);
+        layer.bindTooltip(feature.properties.dong_name, { sticky: true });
+        layer.on("click", () => {
+          if (result) showDongOutline(result);
+        });
+      }
+    }).addTo(layers.boundary);
+
+    const pointsByDong = new Map();
+    const addDongPoint = (d) => {
+      if (!d.dong_code || !Number.isFinite(d.latitude) || !Number.isFinite(d.longitude)) return;
+      const key = String(d.dong_code);
+      if (!pointsByDong.has(key)) pointsByDong.set(key, []);
+      pointsByDong.get(key).push([Number(d.latitude), Number(d.longitude)]);
+    };
+    [...data.trash, ...data.busStops, ...data.parks, ...data.metro].forEach(addDongPoint);
+
+    const cross = (o, a, b) => (a[1] - o[1]) * (b[0] - o[0]) - (a[0] - o[0]) * (b[1] - o[1]);
+    const convexHull = (points) => {
+      const unique = [...new Map(points.map((p) => [`${p[0].toFixed(7)},${p[1].toFixed(7)}`, p])).values()]
+        .sort((a, b) => a[1] === b[1] ? a[0] - b[0] : a[1] - b[1]);
+      if (unique.length <= 2) return unique;
+      const lower = [];
+      for (const p of unique) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+        lower.push(p);
+      }
+      const upper = [];
+      for (let i = unique.length - 1; i >= 0; i--) {
+        const p = unique[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+        upper.push(p);
+      }
+      upper.pop();
+      lower.pop();
+      return lower.concat(upper);
+    };
+
+    const paddedBounds = (points) => {
+      const bounds = L.latLngBounds(points.map((p) => L.latLng(p[0], p[1])));
+      return bounds.pad(0.28);
+    };
+
+    const showDongOutline = (dong) => {
+      highlightLayer.clearLayers();
+      document.querySelectorAll(".rank-item.active").forEach((el) => el.classList.remove("active"));
+      const active = document.querySelector(`[data-dong-code="${dong.dong_code}"]`);
+      if (active) active.classList.add("active");
+
+      const boundary = boundaryByDong.get(String(dong.dong_code));
+      if (boundary) {
+        const selected = L.geoJSON(boundary, {
+          style: {
+            color: "#1967d2",
+            weight: 3,
+            dashArray: "8 7",
+            fill: true,
+            fillColor: "#1967d2",
+            fillOpacity: 0.08
+          }
+        }).bindPopup(popup(`${dong.dong_name} 행정동 경계`, [
+          ["종합 순위", `${dong.priority_rank}위`],
+          ["점수", Number(dong.priority_score).toFixed(2)],
+          ["표시 기준", "행정동 GeoJSON 경계"]
+        ])).addTo(highlightLayer);
+        map.flyToBounds(selected.getBounds().pad(0.12), { duration: 0.65, maxZoom: 15 });
+        return;
+      }
+
+      const points = pointsByDong.get(String(dong.dong_code)) || [];
+      if (!points.length) return;
+
+      const hull = convexHull(points);
+      if (hull.length >= 3) {
+        L.polygon(hull, {
+          color: "#1967d2",
+          weight: 3,
+          dashArray: "8 7",
+          fill: true,
+          fillColor: "#1967d2",
+          fillOpacity: 0.08
+        }).bindPopup(popup(`${dong.dong_name} 선택 영역`, [
+          ["종합 순위", `${dong.priority_rank}위`],
+          ["점수", Number(dong.priority_score).toFixed(2)],
+          ["표시 기준", "보유 좌표 외곽선"]
+        ])).addTo(highlightLayer);
+        map.flyToBounds(paddedBounds(hull), { duration: 0.65, maxZoom: 15 });
+      } else {
+        const center = points[0];
+        L.circle(center, {
+          radius: 450,
+          color: "#1967d2",
+          weight: 3,
+          dashArray: "8 7",
+          fillColor: "#1967d2",
+          fillOpacity: 0.08
+        }).addTo(highlightLayer);
+        map.flyTo(center, 15, { duration: 0.65 });
+      }
+    };
+
+    document.querySelectorAll("[data-layer]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const layer = layers[input.dataset.layer];
+        if (input.checked) {
+          layer.addTo(map);
+        } else {
+          map.removeLayer(layer);
+        }
+      });
+    });
+
+    document.getElementById("statTrash").textContent = fmt.format(data.trash.length);
+    document.getElementById("statBus").textContent = fmt.format(data.busStops.length);
+    document.getElementById("statMetro").textContent = fmt.format(data.metro.length);
+    document.getElementById("statPark").textContent = fmt.format(data.parks.length);
+
+    const recByDong = new Map(data.recommendations.map((d) => [String(d.dong_code), d]));
+    const rankList = document.getElementById("rankList");
+    data.results
+      .slice()
+      .sort((a, b) => Number(a.priority_rank) - Number(b.priority_rank))
+      .forEach((d) => {
+        const item = document.createElement("button");
+        item.className = "rank-item";
+        item.type = "button";
+        item.dataset.dongCode = d.dong_code;
+        item.innerHTML = `
+          <div class="rank-head">
+            <span>${d.priority_rank}. ${d.dong_name}</span>
+            <span class="score">${Number(d.priority_score).toFixed(2)}</span>
+          </div>
+          <div class="rank-meta">
+            <span>민원 ${fmt.format(d.complaint_count)}건</span>
+            <span>쓰레기통 ${fmt.format(d.total_bin_count)}개</span>
+            <span>유동인구 ${fmt.format(d.yearly_avg_floating_population)}</span>
+            <span>접근거리 ${Number(d.weighted_access_distance).toFixed(1)}m</span>
+          </div>
+          <div class="bar"><span style="width:${Math.max(4, Number(d.priority_score) / scoreMax * 100)}%"></span></div>
+        `;
+        item.addEventListener("click", () => {
+          showDongOutline(d);
+        });
+        rankList.appendChild(item);
+      });
+  </script>
+</body>
+</html>
