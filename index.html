@@ -16,7 +16,7 @@
       --trash: #2f7d32;
       --bus: #f59f00;
       --metro: #6f42c1;
-      --park: #0f8b8d;
+      --park: #137a35;
       --recommend: #d93025;
       --candidate: #c2410c;
       --shadow: 0 12px 30px rgba(24, 39, 75, 0.16);
@@ -151,6 +151,23 @@
       background: #fff;
       color: var(--text);
       font: inherit;
+    }
+
+    .clear-selection {
+      margin: 0 12px 8px;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .clear-selection:disabled {
+      color: #9aa4b2;
+      background: #f4f6f9;
+      cursor: default;
     }
 
     .candidate-summary {
@@ -309,27 +326,68 @@
     }
 
     .marker-trash {
-      width: 15px;
-      height: 15px;
-      background: var(--trash);
+      width: 25px;
+      height: 25px;
+      border: 2px solid var(--trash);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.26);
     }
 
     .marker-bus {
-      width: 11px;
-      height: 11px;
-      background: var(--bus);
+      width: 25px;
+      height: 25px;
+      border: 2px solid var(--bus);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.26);
     }
 
     .marker-metro {
-      width: 15px;
-      height: 15px;
-      background: var(--metro);
+      width: 25px;
+      height: 25px;
+      border: 2px solid var(--metro);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.26);
     }
 
     .marker-park {
-      width: 15px;
+      width: 25px;
+      height: 25px;
+      border: 2px solid var(--park);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.26);
+    }
+
+    .marker-icon svg,
+    .marker-park svg,
+    .map-icon svg {
+      filter: none;
+    }
+
+    .marker-icon svg {
+      width: 17px;
+      height: 18px;
+    }
+
+    .marker-park svg {
+      width: 19px;
       height: 15px;
-      background: var(--park);
+    }
+
+    .map-icon {
+      width: 22px;
+      height: 22px;
+      display: inline-grid;
+      place-items: center;
+      flex: 0 0 22px;
+    }
+
+    .map-icon svg {
+      width: 18px;
+      height: 18px;
     }
 
     .marker-rec {
@@ -397,13 +455,12 @@
         <div class="panel-title">지도 레이어</div>
         <div class="layer-grid">
           <label class="layer"><input type="checkbox" data-layer="boundary" checked><span style="width:20px;border-top:2px solid #7d8da6;display:inline-block"></span>행정경계</label>
-          <label class="layer"><input type="checkbox" data-layer="recommend" checked><span class="dot" style="background:var(--recommend)"></span>추천 후보</label>
-          <label class="layer"><input type="checkbox" data-layer="candidate" checked><span class="dot" style="background:var(--candidate)"></span>선택 동 후보</label>
+          <label class="layer"><input type="checkbox" data-layer="candidate" checked><span class="dot" style="background:var(--candidate)"></span>쓰레기통 추천</label>
           <label class="layer"><input type="checkbox" data-layer="service" checked><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>서비스 반경</label>
-          <label class="layer"><input type="checkbox" data-layer="trash" checked><span class="dot" style="background:var(--trash)"></span>쓰레기통</label>
-          <label class="layer"><input type="checkbox" data-layer="bus"><span class="dot" style="background:var(--bus)"></span>버스정류장</label>
-          <label class="layer"><input type="checkbox" data-layer="metro" checked><span class="dot" style="background:var(--metro)"></span>지하철역</label>
-          <label class="layer"><input type="checkbox" data-layer="park" checked><span class="dot" style="background:var(--park)"></span>공원</label>
+          <label class="layer"><input type="checkbox" data-layer="trash" checked><span class="map-icon" data-legend-icon="trash"></span>쓰레기통</label>
+          <label class="layer"><input type="checkbox" data-layer="bus" checked><span class="map-icon" data-legend-icon="bus"></span>버스정류장</label>
+          <label class="layer"><input type="checkbox" data-layer="metro" checked><span class="map-icon" data-legend-icon="metro"></span>지하철역</label>
+          <label class="layer"><input type="checkbox" data-layer="park" checked><span class="map-icon" data-legend-icon="park"></span>공원</label>
         </div>
         <div class="control-row">
           <span>기존 쓰레기통 서비스 반경</span>
@@ -414,8 +471,9 @@
             <option value="300">300m</option>
           </select>
         </div>
+        <button class="clear-selection" id="clearSelection" type="button" disabled>선택 해제</button>
         <div class="candidate-summary" id="candidateSummary">
-          동을 선택하면 반경별 추천 후보 개수가 표시됩니다.
+          기본 화면에는 상위 동 설치 후보가 표시됩니다.
         </div>
       </section>
 
@@ -429,14 +487,13 @@
       <div id="map"></div>
       <div class="legend">
         <b>추천 후보 해석</b>
-        <div class="legend-row"><span class="dot" style="background:var(--recommend)"></span>종합 Top 5와 비화곡권 보완 후보</div>
-        <div class="legend-row"><span class="dot" style="background:var(--candidate)"></span>주요시설 중심 설치 후보</div>
+        <div class="legend-row"><span class="dot" style="background:var(--candidate)"></span>쓰레기통 설치 추천 후보</div>
         <div class="legend-row"><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>선택 동 기존 쓰레기통 서비스 반경</div>
         <div class="legend-row"><span style="width:20px;border-top:2px dashed #1967d2;display:inline-block"></span>선택 행정동 경계</div>
-        <div class="legend-row"><span class="dot" style="background:var(--trash)"></span>기존 설치 쓰레기통</div>
-        <div class="legend-row"><span class="dot" style="background:var(--bus)"></span>버스정류장</div>
-        <div class="legend-row"><span class="dot" style="background:var(--metro)"></span>지하철역</div>
-        <div class="legend-row"><span class="dot" style="background:var(--park)"></span>공원</div>
+        <div class="legend-row"><span class="map-icon" data-legend-icon="trash"></span>기존 설치 쓰레기통</div>
+        <div class="legend-row"><span class="map-icon" data-legend-icon="bus"></span>버스정류장</div>
+        <div class="legend-row"><span class="map-icon" data-legend-icon="metro"></span>지하철역</div>
+        <div class="legend-row"><span class="map-icon" data-legend-icon="park"></span>공원</div>
       </div>
     </main>
   </div>
@@ -454,10 +511,20 @@
       preferCanvas: true,
       zoomControl: true
     }).setView(data.meta.center, 13);
+    map.createPane("outsideMaskPane");
+    map.getPane("outsideMaskPane").style.zIndex = 330;
+    map.getPane("outsideMaskPane").style.pointerEvents = "none";
     map.createPane("selectedBoundaryPane");
     map.getPane("selectedBoundaryPane").style.zIndex = 655;
+    map.getPane("selectedBoundaryPane").style.pointerEvents = "none";
     map.createPane("serviceRadiusPane");
     map.getPane("serviceRadiusPane").style.zIndex = 430;
+    map.getPane("serviceRadiusPane").style.pointerEvents = "none";
+    map.createPane("candidateRadiusPane");
+    map.getPane("candidateRadiusPane").style.zIndex = 690;
+    map.getPane("candidateRadiusPane").style.pointerEvents = "none";
+    map.createPane("candidateMarkerPane");
+    map.getPane("candidateMarkerPane").style.zIndex = 720;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
@@ -466,15 +533,16 @@
 
     const layers = {
       boundary: L.layerGroup().addTo(map),
-      recommend: L.layerGroup().addTo(map),
+      recommend: L.layerGroup(),
       candidate: L.layerGroup().addTo(map),
       service: L.layerGroup().addTo(map),
       trash: L.layerGroup().addTo(map),
-      bus: L.layerGroup(),
+      bus: L.layerGroup().addTo(map),
       metro: L.layerGroup().addTo(map),
       park: L.layerGroup().addTo(map)
     };
     const highlightLayer = L.layerGroup().addTo(map);
+    const outsideMaskLayer = L.layerGroup().addTo(map);
     const boundaryByDong = new Map();
     let activeDongCode = null;
 
@@ -483,62 +551,150 @@
       boundaryByDong.set(code, feature);
     });
 
+    const parkIconHtml = `
+      <svg viewBox="0 0 68 48" role="img" aria-label="공원">
+        <g fill="none" stroke="var(--park)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="17" r="14"></circle>
+          <path d="M18 17v25"></path>
+          <path d="M11 24l7 7 7-12"></path>
+          <path d="M34 29h21"></path>
+          <path d="M37 29v12"></path>
+          <path d="M54 29v12"></path>
+          <path d="M31 41h30"></path>
+          <path d="M56 30c6-2 9-6 9-12 0-8-6-14-14-14-7 0-13 5-14 12"></path>
+        </g>
+      </svg>
+    `;
+
+    const trashIconHtml = `
+      <svg viewBox="0 0 48 56" role="img" aria-label="쓰레기통">
+        <g fill="none" stroke="var(--trash)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 14h20"></path>
+          <path d="M19 9h10"></path>
+          <path d="M10 18h28"></path>
+          <path d="M14 18l3 31h14l3-31"></path>
+          <path d="M21 25v17"></path>
+          <path d="M27 25v17"></path>
+        </g>
+      </svg>
+    `;
+
+    const busIconHtml = `
+      <svg viewBox="0 0 48 56" role="img" aria-label="버스정류장">
+        <g fill="none" stroke="var(--bus)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M13 8h19c5 0 8 3 8 8v17c0 4-3 7-7 7H15c-4 0-7-3-7-7V16c0-5 3-8 5-8z"></path>
+          <path d="M12 20h24"></path>
+          <path d="M15 30h5"></path>
+          <path d="M28 30h5"></path>
+          <path d="M16 40v6"></path>
+          <path d="M32 40v6"></path>
+          <path d="M38 10h4"></path>
+          <path d="M42 10v36"></path>
+        </g>
+      </svg>
+    `;
+
+    const metroIconHtml = `
+      <svg viewBox="0 0 48 56" role="img" aria-label="지하철역">
+        <g fill="none" stroke="var(--metro)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 8h20c4 0 7 3 7 7v19c0 5-4 9-9 9H16c-5 0-9-4-9-9V15c0-4 3-7 7-7z"></path>
+          <path d="M11 21h26"></path>
+          <path d="M15 32h5"></path>
+          <path d="M28 32h5"></path>
+          <path d="M17 43l-5 7"></path>
+          <path d="M31 43l5 7"></path>
+          <path d="M16 50h16"></path>
+        </g>
+      </svg>
+    `;
+
+    const legendIcons = {
+      trash: trashIconHtml,
+      bus: busIconHtml,
+      metro: metroIconHtml,
+      park: parkIconHtml
+    };
+
     const markerIcon = (className, html = "") => L.divIcon({
       className: "",
-      html: `<div class="marker ${className}">${html}</div>`,
-      iconSize: className === "marker-rec" ? [31, 31] : [18, 18],
-      iconAnchor: className === "marker-rec" ? [15, 15] : [9, 9]
+      html: `<div class="marker ${className} ${html ? "marker-icon" : ""}">${html}</div>`,
+      iconSize: className === "marker-rec" ? [31, 31] : html ? [25, 25] : [18, 18],
+      iconAnchor: className === "marker-rec" ? [15, 15] : html ? [12, 12] : [9, 9]
+    });
+
+    document.querySelectorAll("[data-legend-icon]").forEach((el) => {
+      el.innerHTML = legendIcons[el.dataset.legendIcon] || "";
     });
 
     const popup = (title, rows) => {
       const body = rows.map(([k, v]) => `<div>${k}</div><div>${v ?? ""}</div>`).join("");
       return `<div class="popup-title">${title}</div><div class="popup-kv">${body}</div>`;
     };
+    const dongNameByCode = new Map(data.dongs.map((d) => [String(d.dong_code), d.dong_name]));
 
-    data.trash.forEach((d) => {
-      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-trash") })
-        .bindPopup(popup(d.install_place || "쓰레기통", [
-          ["행정동", d.dong_name],
-          ["설치지점", d.install_point],
-          ["종류", d.trash_type],
-          ["형태", d.bin_shape],
-          ["개수", d.bin_count]
-        ]))
-        .addTo(layers.trash);
-    });
+    const matchesDong = (row, dongCode) => !dongCode || String(row.dong_code) === String(dongCode);
 
-    data.busStops.forEach((d) => {
-      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-bus") })
-        .bindPopup(popup(d.stop_name || "버스정류장", [
-          ["행정동", d.dong_name],
-          ["정류장 ID", d.node_id]
-        ]))
-        .addTo(layers.bus);
-    });
+    const renderFacilityLayers = (dongCode = null) => {
+      layers.trash.clearLayers();
+      layers.bus.clearLayers();
+      layers.metro.clearLayers();
+      layers.park.clearLayers();
 
-    data.metro.forEach((d) => {
-      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-metro") })
-        .bindPopup(popup(d.station_name || "지하철역", [
-          ["행정동", d.dong_name],
-          ["노선", d.line],
-          ["역 ID", d.station_id]
-        ]))
-        .addTo(layers.metro);
-    });
+      data.trash.filter((d) => matchesDong(d, dongCode)).forEach((d) => {
+        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-trash", trashIconHtml), bubblingMouseEvents: true })
+          .bindPopup(popup(d.install_place || "쓰레기통", [
+            ["행정동", d.dong_name || dongNameByCode.get(String(d.dong_code))],
+            ["설치지점", d.install_point],
+            ["종류", d.trash_type],
+            ["형태", d.bin_shape],
+            ["개수", d.bin_count]
+          ]))
+          .addTo(layers.trash);
+      });
 
-    data.parks.forEach((d) => {
-      L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-park") })
-        .bindPopup(popup(d.park_name || "공원", [
-          ["행정동", d.dong_name],
-          ["면적", `${fmt.format(Number(d.park_area || 0))}㎡`],
-          ["주소", d.park_address]
-        ]))
-        .addTo(layers.park);
-    });
+      data.busStops.filter((d) => matchesDong(d, dongCode)).forEach((d) => {
+        const name = d.stop_name || "버스정류장";
+        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-bus", busIconHtml), bubblingMouseEvents: true })
+          .bindTooltip(name, { direction: "top", offset: [0, -12] })
+          .bindPopup(popup(name, [
+            ["시설", "버스정류장"],
+            ["행정동", d.dong_name || dongNameByCode.get(String(d.dong_code))],
+            ["정류장 ID", d.node_id]
+          ]))
+          .addTo(layers.bus);
+      });
+
+      data.metro.filter((d) => matchesDong(d, dongCode)).forEach((d) => {
+        const name = d.station_name || "지하철역";
+        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-metro", metroIconHtml), bubblingMouseEvents: true })
+          .bindTooltip(name, { direction: "top", offset: [0, -12] })
+          .bindPopup(popup(name, [
+            ["시설", "지하철역"],
+            ["행정동", d.dong_name || dongNameByCode.get(String(d.dong_code))],
+            ["노선", d.line],
+            ["역 ID", d.station_id]
+          ]))
+          .addTo(layers.metro);
+      });
+
+      data.parks.filter((d) => matchesDong(d, dongCode)).forEach((d) => {
+        const area = Number(d.park_area || 0);
+        const name = d.park_name || "공원";
+        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-park", parkIconHtml), bubblingMouseEvents: true })
+          .bindTooltip(name, { direction: "top", offset: [0, -12] })
+          .bindPopup(popup(name, [
+            ["시설", "공원"],
+            ["행정동", d.dong_name || dongNameByCode.get(String(d.dong_code))],
+            ["면적", `${fmt.format(area)}㎡`],
+            ["주소", d.park_address]
+          ]))
+          .addTo(layers.park);
+      });
+    };
 
     data.recommendations.forEach((d) => {
       const rank = d.type === "종합 우선" ? d.priority_rank : "보";
-      L.marker([d.lat, d.lng], { icon: markerIcon("marker-rec", rank) })
+      L.marker([d.lat, d.lng], { icon: markerIcon("marker-rec", rank), bubblingMouseEvents: true })
         .bindPopup(popup(`${d.dong_name} ${d.type}`, [
           ["종합 순위", `${d.priority_rank}위`],
           ["점수", Number(d.priority_score).toFixed(2)],
@@ -572,9 +728,10 @@
     };
 
     const resultByDong = new Map(data.results.map((d) => [String(d.dong_code), d]));
-    const targetDongCodes = new Set(data.results
-      .filter((d) => Number(d.priority_rank) <= 10)
-      .map((d) => String(d.dong_code)));
+    const maxPriorityScore = Math.max(...data.results.map((d) => Number(d.priority_score) || 0), 1);
+    const maxCommercialStore = Math.max(...data.results.map((d) => Number(d.commercial_store_count) || 0), 1);
+    const hwagokDongCodes = new Set(["11500540", "11500550", "11500560", "11500570", "11500590", "11500591", "11500593"]);
+    const targetDongCodes = new Set(data.results.map((d) => String(d.dong_code)));
     let installCandidates = [];
     let allFacilityCandidates = [];
     let currentSelectedCandidates = [];
@@ -585,10 +742,75 @@
       ...data.parks.map((d) => ({ ...d, facilityType: "공원", facilityName: d.park_name }))
     ];
 
+    const noInstallZones = [
+      [
+        [37.5515, 126.8130],
+        [37.5690, 126.8000],
+        [37.5845, 126.8065],
+        [37.5865, 126.8360],
+        [37.5755, 126.8625],
+        [37.5580, 126.8720],
+        [37.5525, 126.8610],
+        [37.5575, 126.8450],
+        [37.5515, 126.8290]
+      ]
+    ];
+
+    const isPointInPolygon = (point, polygon) => {
+      const [lat, lng] = point;
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const [latI, lngI] = polygon[i];
+        const [latJ, lngJ] = polygon[j];
+        const crosses = (lngI > lng) !== (lngJ > lng);
+        const latAtLng = (latJ - latI) * (lng - lngI) / ((lngJ - lngI) || 1e-12) + latI;
+        if (crosses && lat < latAtLng) inside = !inside;
+      }
+      return inside;
+    };
+
+    const isNoInstallPoint = (point) => {
+      const lat = Number(point.latitude);
+      const lng = Number(point.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return true;
+      return noInstallZones.some((zone) => isPointInPolygon([lat, lng], zone));
+    };
+
+    const facilityTypeWeight = {
+      "지하철역": 1,
+      "버스정류장": 0.85,
+      "공원": 0.65
+    };
+
+    const candidateScoreParts = (candidate, coverageDistance) => {
+      const radius = Number(document.getElementById("radiusSelect").value);
+      const result = resultByDong.get(String(candidate.dong_code)) || {};
+      const priority = ((Number(result.priority_score) || 0) / maxPriorityScore) * 20;
+      const distance = Math.min(coverageDistance / Math.max(radius * 3, 1), 1) * 20;
+      const commercial = ((Number(result.commercial_store_count) || 0) / maxCommercialStore) * 20;
+      const facility = (facilityTypeWeight[candidate.facilityType] || 0.5) * 20;
+      const total = priority * 0.40 + distance * 0.30 + commercial * 0.20 + facility * 0.10;
+      return { priority, distance, commercial, facility, total };
+    };
+
+    const withCandidateScore = (candidate, coverageDistance) => {
+      const parts = candidateScoreParts(candidate, coverageDistance);
+      return {
+        ...candidate,
+        nearestTrashDistance: coverageDistance,
+        candidateScore: parts.total,
+        scorePriority: parts.priority,
+        scoreDistance: parts.distance,
+        scoreCommercial: parts.commercial,
+        scoreFacility: parts.facility
+      };
+    };
+
     const buildCandidates = () => {
       const radius = Number(document.getElementById("radiusSelect").value);
       allFacilityCandidates = facilityRows
         .filter((facility) => targetDongCodes.has(String(facility.dong_code)))
+        .filter((facility) => !isNoInstallPoint(facility))
         .map((facility) => {
           const near = nearestTrash(facility);
           const result = resultByDong.get(String(facility.dong_code));
@@ -604,7 +826,6 @@
       installCandidates = allFacilityCandidates
         .filter((candidate) => candidate.outsideService)
         .sort((a, b) => a.priorityRank - b.priorityRank || b.nearestTrashDistance - a.nearestTrashDistance)
-        .slice(0, 70);
     };
 
     const updateCandidateSummary = (dongCode, total, shown, fallbackMode = false) => {
@@ -612,14 +833,18 @@
       const radius = Number(document.getElementById("radiusSelect").value);
       const dong = data.results.find((d) => String(d.dong_code) === String(dongCode));
       if (!dongCode || !dong) {
-        summary.textContent = "동을 선택하면 반경별 추천 후보 개수가 표시됩니다.";
+        summary.innerHTML = `<strong>강서구 전체 보기</strong><br>계산된 쓰레기통 추천 후보 전체 ${shown}개를 표시합니다.`;
         return;
       }
-      if (fallbackMode) {
-        summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 주요시설 후보가 없어, 반경 내 최장거리 주요시설 ${shown}개를 표시합니다.`;
+      if (fallbackMode === "gap") {
+        summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 공공시설 후보가 없어, 시설권 내 쓰레기통 공백지역 ${shown}개를 표시합니다.`;
         return;
       }
-      summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 주요시설 ${total}개를 순차 배치 후보 ${shown}개로 보완합니다.`;
+      if (fallbackMode === "facility") {
+        summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 공백지역 후보가 없어, 반경 내 점수 상위 주요시설 ${shown}개를 표시합니다.`;
+        return;
+      }
+      summary.innerHTML = `<strong>${dong.dong_name}</strong><br>${radius}m 밖 주요시설 ${total}개 중 후보지 점수 상위 ${shown}개를 순차 배치합니다.`;
     };
 
     const nearestCoverageDistance = (facility, coveragePoints) => {
@@ -628,6 +853,110 @@
         distance = Math.min(distance, distanceMeters(facility, point));
       });
       return distance;
+    };
+
+    const boundaryRings = (feature) => {
+      const polygons = feature.geometry.type === "MultiPolygon"
+        ? feature.geometry.coordinates
+        : [feature.geometry.coordinates];
+      return polygons.flatMap((polygon) => polygon.map((ring) => ring.map(([lng, lat]) => [lat, lng])));
+    };
+
+    const isPointInRing = (point, ring) => {
+      const [lat, lng] = point;
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [latI, lngI] = ring[i];
+        const [latJ, lngJ] = ring[j];
+        const crosses = (lngI > lng) !== (lngJ > lng);
+        const latAtLng = (latJ - latI) * (lng - lngI) / ((lngJ - lngI) || 1e-12) + latI;
+        if (crosses && lat < latAtLng) inside = !inside;
+      }
+      return inside;
+    };
+
+    const isPointInBoundary = (lat, lng, feature) => {
+      const rings = boundaryRings(feature);
+      return rings.some((ring) => isPointInRing([lat, lng], ring));
+    };
+
+    const resultAtLatLng = (latlng) => {
+      const feature = boundaries.features.find((item) => isPointInBoundary(latlng.lat, latlng.lng, item));
+      if (!feature) return null;
+      const code = String(feature.properties.dong_code);
+      return data.results.find((d) => String(d.dong_code) === code) || null;
+    };
+
+    const boundaryBounds = (feature) => {
+      const points = boundaryRings(feature).flat();
+      const lats = points.map((p) => p[0]);
+      const lngs = points.map((p) => p[1]);
+      return {
+        minLat: Math.min(...lats),
+        maxLat: Math.max(...lats),
+        minLng: Math.min(...lngs),
+        maxLng: Math.max(...lngs)
+      };
+    };
+
+    const selectGapCandidates = (dongCode) => {
+      const boundary = boundaryByDong.get(String(dongCode));
+      if (!boundary) return [];
+      const result = resultByDong.get(String(dongCode)) || {};
+      const radius = Number(document.getElementById("radiusSelect").value);
+      const candidateSpacing = radius * 2.1;
+      const bounds = boundaryBounds(boundary);
+      const midLat = (bounds.minLat + bounds.maxLat) / 2;
+      const stepMeters = Math.max(90, radius * 0.75);
+      const stepLat = stepMeters / 111320;
+      const stepLng = stepMeters / (111320 * Math.max(Math.cos(toRad(midLat)), 0.25));
+      const coveragePoints = data.trash.map((trash) => ({
+        latitude: Number(trash.latitude),
+        longitude: Number(trash.longitude)
+      }));
+      const anchorPoints = facilityRows
+        .filter((facility) => String(facility.dong_code) === String(dongCode))
+        .map((facility) => ({
+          latitude: Number(facility.latitude),
+          longitude: Number(facility.longitude)
+        }))
+        .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+      const landAnchorLimit = Math.max(260, radius * 1.6);
+      const pool = [];
+
+      for (let lat = bounds.minLat; lat <= bounds.maxLat; lat += stepLat) {
+        for (let lng = bounds.minLng; lng <= bounds.maxLng; lng += stepLng) {
+          if (!isPointInBoundary(lat, lng, boundary)) continue;
+          const point = { latitude: lat, longitude: lng };
+          if (isNoInstallPoint(point)) continue;
+          const anchorDistance = anchorPoints.length ? nearestCoverageDistance(point, anchorPoints) : Infinity;
+          if (anchorDistance > landAnchorLimit) continue;
+          const coverageDistance = nearestCoverageDistance(point, coveragePoints);
+          if (coverageDistance <= radius) continue;
+          const parts = candidateScoreParts({ dong_code: dongCode, facilityType: "공백지역" }, coverageDistance);
+          pool.push({
+            dong_code: dongCode,
+            dong_name: result.dong_name,
+            latitude: lat,
+            longitude: lng,
+            facilityType: "공백지역",
+            facilityName: "시설권 쓰레기통 공백지역",
+            priorityRank: result.priority_rank ?? 999,
+            priorityScore: result.priority_score ?? 0,
+            nearestTrashDistance: coverageDistance,
+            candidateScore: parts.total,
+            gapCandidate: true
+          });
+        }
+      }
+
+      pool.sort((a, b) => b.candidateScore - a.candidateScore || b.nearestTrashDistance - a.nearestTrashDistance);
+      const selected = [];
+      for (const candidate of pool) {
+        if (selected.some((picked) => distanceMeters(candidate, picked) < candidateSpacing)) continue;
+        selected.push({ ...candidate, sequence: selected.length + 1 });
+      }
+      return selected;
     };
 
     const selectGreedyCandidates = (dongCode) => {
@@ -643,22 +972,25 @@
       const initialOutsideCount = pool.filter((facility) => nearestCoverageDistance(facility, coveragePoints) > radius).length;
       const selected = [];
 
-      while (pool.length && selected.length < 18) {
+      while (pool.length) {
         let bestIndex = -1;
         let bestDistance = -1;
+        let bestScore = -1;
         pool.forEach((facility, index) => {
           const distance = nearestCoverageDistance(facility, coveragePoints);
-          if (distance > bestDistance) {
+          if (distance <= radius) return;
+          const score = candidateScoreParts(facility, distance).total;
+          if (score > bestScore || (score === bestScore && distance > bestDistance)) {
+            bestScore = score;
             bestDistance = distance;
             bestIndex = index;
           }
         });
 
-        if (bestDistance <= radius) break;
+        if (bestIndex < 0) break;
 
         const chosen = {
-          ...pool.splice(bestIndex, 1)[0],
-          nearestTrashDistance: bestDistance,
+          ...withCandidateScore(pool.splice(bestIndex, 1)[0], bestDistance),
           sequence: selected.length + 1
         };
         selected.push(chosen);
@@ -681,7 +1013,8 @@
       const candidateSpacing = radius * 2.1;
       const sorted = allFacilityCandidates
         .filter((d) => String(d.dong_code) === String(dongCode))
-        .sort((a, b) => b.nearestTrashDistance - a.nearestTrashDistance);
+        .map((d) => withCandidateScore(d, d.nearestTrashDistance))
+        .sort((a, b) => b.candidateScore - a.candidateScore || b.nearestTrashDistance - a.nearestTrashDistance);
       const selected = [];
 
       for (const candidate of sorted) {
@@ -689,37 +1022,89 @@
         if (!tooClose) {
           selected.push({ ...candidate, fallbackCandidate: true, sequence: selected.length + 1 });
         }
-        if (selected.length >= 4) break;
       }
 
       return selected;
+    };
+
+    const selectCandidatesForDong = (dongCode) => {
+      const greedy = selectGreedyCandidates(dongCode);
+      const gapCandidates = greedy.selected.length ? [] : selectGapCandidates(dongCode);
+      const selected = greedy.selected.length
+        ? greedy.selected
+        : gapCandidates.length
+          ? gapCandidates
+          : selectSpacedFallbackCandidates(dongCode);
+      return { selected, greedy, gapCandidates };
+    };
+
+    const selectDefaultCandidates = () => {
+      const defaultDongs = data.results
+        .slice()
+        .sort((a, b) => Number(a.priority_rank) - Number(b.priority_rank));
+      return defaultDongs.flatMap((dong) => {
+        const { selected } = selectCandidatesForDong(dong.dong_code);
+        return selected.map((candidate, index) => ({
+          ...candidate,
+          sequence: dong.priority_rank,
+          defaultCandidate: true,
+          defaultOrder: index + 1
+        }));
+      });
     };
 
     const renderCandidateLayer = (dongCode = null) => {
       layers.candidate.clearLayers();
       buildCandidates();
       if (!dongCode) {
+        const selected = selectDefaultCandidates();
         currentSelectedCandidates = [];
-        updateCandidateSummary(null, 0, 0);
+        updateCandidateSummary(null, 0, selected.length);
+        selected.forEach((d) => {
+          L.marker([d.latitude, d.longitude], {
+            icon: markerIcon("marker-candidate", d.sequence || ""),
+            pane: "candidateMarkerPane",
+            bubblingMouseEvents: true
+          })
+            .bindPopup(popup(`${d.facilityName}`, [
+              ["표시 기준", "강서구 전체 우선 후보"],
+              ["후보 점수", `${Number(d.candidateScore || 0).toFixed(2)}점`],
+              ["후보 유형", d.facilityType],
+              ["행정동", d.dong_name],
+              ["종합 순위", `${d.priorityRank}위`],
+              ["최근접 쓰레기통", `${Math.round(d.nearestTrashDistance)}m`],
+              ["상권 점포", `${fmt.format(resultByDong.get(String(d.dong_code))?.commercial_store_count || 0)}개`],
+              ["판단", d.gapCandidate ? "시설권 내 쓰레기통 공백지역" : d.fallbackCandidate ? "반경 내 점수 상위 주요시설" : "서비스 반경 밖 점수 상위 주요시설"]
+            ]))
+            .addTo(layers.candidate);
+        });
         return;
       }
-      const greedy = selectGreedyCandidates(dongCode);
-      const selected = greedy.selected.length
-        ? greedy.selected
-        : selectSpacedFallbackCandidates(dongCode);
+      const { selected, greedy, gapCandidates } = selectCandidatesForDong(dongCode);
       currentSelectedCandidates = selected;
 
-      updateCandidateSummary(dongCode, greedy.initialOutsideCount, selected.length, !greedy.selected.length);
+      updateCandidateSummary(
+        dongCode,
+        greedy.initialOutsideCount,
+        selected.length,
+        greedy.selected.length ? false : gapCandidates.length ? "gap" : "facility"
+      );
 
       selected.forEach((d) => {
-        L.marker([d.latitude, d.longitude], { icon: markerIcon("marker-candidate", d.sequence || "") })
+        L.marker([d.latitude, d.longitude], {
+          icon: markerIcon("marker-candidate", d.sequence || ""),
+          pane: "candidateMarkerPane",
+          bubblingMouseEvents: true
+        })
           .bindPopup(popup(`${d.facilityName}`, [
             ["추천 순서", d.sequence ? `${d.sequence}번째` : "보완 후보"],
+            ["후보 점수", `${Number(d.candidateScore || 0).toFixed(2)}점`],
             ["후보 유형", d.facilityType],
             ["행정동", d.dong_name],
             ["종합 순위", `${d.priorityRank}위`],
             ["최근접 쓰레기통", `${Math.round(d.nearestTrashDistance)}m`],
-            ["판단", d.fallbackCandidate ? "반경 내 최장거리 주요시설" : "서비스 반경 밖 주요시설"]
+            ["상권 점포", `${fmt.format(resultByDong.get(String(d.dong_code))?.commercial_store_count || 0)}개`],
+            ["판단", d.gapCandidate ? "시설권 내 쓰레기통 공백지역" : d.fallbackCandidate ? "반경 내 점수 상위 주요시설" : "서비스 반경 밖 점수 상위 주요시설"]
           ]))
           .addTo(layers.candidate);
       });
@@ -727,10 +1112,10 @@
 
     L.geoJSON(boundaries, {
       style: {
-        color: "#7d8da6",
-        weight: 1.2,
-        opacity: 0.85,
-        fillOpacity: 0.025
+        color: "transparent",
+        weight: 0,
+        opacity: 0,
+        fillOpacity: 0.015
       },
       onEachFeature: (feature, layer) => {
         const code = String(feature.properties.dong_code);
@@ -741,6 +1126,11 @@
         });
       }
     }).addTo(layers.boundary);
+
+    map.on("click", (event) => {
+      const result = resultAtLatLng(event.latlng);
+      if (result) showDongOutline(result);
+    });
 
     const pointsByDong = new Map();
     const addDongPoint = (d) => {
@@ -777,18 +1167,117 @@
       return bounds.pad(0.28);
     };
 
+    const ringSegments = (feature) => {
+      const coords = feature.geometry.coordinates;
+      const polygons = feature.geometry.type === "MultiPolygon" ? coords : [coords];
+      const segments = [];
+      polygons.forEach((polygon) => {
+        polygon.forEach((ring) => {
+          for (let i = 0; i < ring.length - 1; i++) {
+            const a = ring[i];
+            const b = ring[i + 1];
+            const keyA = `${a[0].toFixed(7)},${a[1].toFixed(7)}`;
+            const keyB = `${b[0].toFixed(7)},${b[1].toFixed(7)}`;
+            const key = keyA < keyB ? `${keyA}|${keyB}` : `${keyB}|${keyA}`;
+            segments.push({ key, latlngs: [[a[1], a[0]], [b[1], b[0]]] });
+          }
+        });
+      });
+      return segments;
+    };
+
+    const boundaryOuterRings = () => {
+      const rings = [];
+      boundaries.features.forEach((feature) => {
+        const polygons = feature.geometry.type === "MultiPolygon"
+          ? feature.geometry.coordinates
+          : [feature.geometry.coordinates];
+        polygons.forEach((polygon) => {
+          if (polygon[0]) {
+            rings.push(polygon[0].map(([lng, lat]) => [lat, lng]));
+          }
+        });
+      });
+      return rings;
+    };
+
+    const renderOutsideMask = () => {
+      const worldRing = [
+        [85, -180],
+        [85, 180],
+        [-85, 180],
+        [-85, -180]
+      ];
+      L.polygon([worldRing, ...boundaryOuterRings()], {
+        interactive: false,
+        pane: "outsideMaskPane",
+        stroke: false,
+        fill: true,
+        fillColor: "#9aa0a6",
+        fillOpacity: 0.48,
+        fillRule: "evenodd"
+      }).addTo(outsideMaskLayer);
+    };
+
+    const renderGangseoOutline = (fit = false) => {
+      const segmentMap = new Map();
+      boundaries.features.forEach((feature) => {
+        ringSegments(feature).forEach((segment) => {
+          if (!segmentMap.has(segment.key)) {
+            segmentMap.set(segment.key, { count: 0, latlngs: segment.latlngs });
+          }
+          segmentMap.get(segment.key).count += 1;
+        });
+      });
+
+      const outerLayer = L.layerGroup();
+      segmentMap.forEach((segment) => {
+        if (segment.count !== 1) return;
+        L.polyline(segment.latlngs, {
+          interactive: false,
+          pane: "selectedBoundaryPane",
+          color: "#ff2d55",
+          weight: 4,
+          opacity: 0.95
+        }).addTo(outerLayer);
+      });
+      outerLayer.addTo(highlightLayer);
+
+      if (fit) {
+        const outlineBounds = L.latLngBounds(
+          [...segmentMap.values()]
+            .filter((segment) => segment.count === 1)
+            .flatMap((segment) => segment.latlngs)
+            .map((point) => L.latLng(point[0], point[1]))
+        );
+        if (outlineBounds.isValid()) {
+          map.flyToBounds(outlineBounds.pad(0.08), { duration: 0.65, maxZoom: 13 });
+        }
+      }
+    };
+
     const showDongOutline = (dong) => {
       activeDongCode = String(dong.dong_code);
+      document.getElementById("clearSelection").disabled = false;
       highlightLayer.clearLayers();
       layers.service.clearLayers();
+      renderFacilityLayers(dong.dong_code);
       renderCandidateLayer(dong.dong_code);
       document.querySelectorAll(".rank-item.active").forEach((el) => el.classList.remove("active"));
       const active = document.querySelector(`[data-dong-code="${dong.dong_code}"]`);
-      if (active) active.classList.add("active");
+      if (active) {
+        active.classList.add("active");
+        active.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "nearest"
+        });
+      }
 
       const boundary = boundaryByDong.get(String(dong.dong_code));
       if (boundary) {
         const selected = L.geoJSON(boundary, {
+          interactive: false,
           style: {
             pane: "selectedBoundaryPane",
             color: "#1967d2",
@@ -809,6 +1298,7 @@
           .forEach((trash) => {
             L.circle([trash.latitude, trash.longitude], {
               radius,
+              interactive: false,
               pane: "serviceRadiusPane",
               color: "#2f7d32",
               weight: 1.4,
@@ -822,7 +1312,8 @@
           if (candidate.fallbackCandidate) return;
           L.circle([candidate.latitude, candidate.longitude], {
             radius,
-            pane: "serviceRadiusPane",
+            interactive: false,
+            pane: "candidateRadiusPane",
             color: "#c2410c",
             weight: 2.2,
             dashArray: "7 5",
@@ -842,6 +1333,7 @@
       const hull = convexHull(points);
       if (hull.length >= 3) {
         L.polygon(hull, {
+          interactive: false,
           color: "#1967d2",
           weight: 3,
           dashArray: "8 7",
@@ -858,6 +1350,7 @@
         const center = points[0];
         L.circle(center, {
           radius: 450,
+          interactive: false,
           color: "#1967d2",
           weight: 3,
           dashArray: "8 7",
@@ -866,6 +1359,18 @@
         }).addTo(highlightLayer);
         map.flyTo(center, 15, { duration: 0.65 });
       }
+    };
+
+    const clearSelection = () => {
+      activeDongCode = null;
+      highlightLayer.clearLayers();
+      layers.service.clearLayers();
+      currentSelectedCandidates = [];
+      document.querySelectorAll(".rank-item.active").forEach((el) => el.classList.remove("active"));
+      document.getElementById("clearSelection").disabled = true;
+      renderFacilityLayers();
+      renderGangseoOutline(true);
+      renderCandidateLayer();
     };
 
     document.querySelectorAll("[data-layer]").forEach((input) => {
@@ -888,6 +1393,11 @@
       }
     });
 
+    document.getElementById("clearSelection").addEventListener("click", clearSelection);
+
+    renderOutsideMask();
+    renderFacilityLayers();
+    renderGangseoOutline();
     renderCandidateLayer();
 
     document.getElementById("statTrash").textContent = fmt.format(data.trash.length);
@@ -913,7 +1423,7 @@
           <div class="rank-meta">
             <span>민원 ${fmt.format(d.complaint_count)}건</span>
             <span>쓰레기통 ${fmt.format(d.total_bin_count)}개</span>
-            <span>연평균 유동인구 ${fmt.format(d.yearly_avg_floating_population)}</span>
+            <span>면적당 유동 ${Number(d.floating_population_density || 0).toFixed(2)}</span>
             <span>상권 점포 ${fmt.format(d.commercial_store_count || 0)}개</span>
             <span>주요시설 거리 ${Number(d.weighted_access_distance).toFixed(1)}m</span>
           </div>
