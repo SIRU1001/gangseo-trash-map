@@ -674,12 +674,17 @@
           <div class="layer-grid">
             <label class="layer"><input type="checkbox" data-layer="boundary" checked><span style="width:20px;border-top:2px solid #7d8da6;display:inline-block"></span>행정경계</label>
             <label class="layer"><input type="checkbox" data-layer="candidate" checked><span class="dot" style="background:var(--candidate)"></span>쓰레기통 추천</label>
-            <label class="layer"><input type="checkbox" data-layer="service" checked><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>서비스 반경</label>
-            <label class="layer"><input type="checkbox" data-layer="trash" checked><span class="map-icon" data-legend-icon="trash"></span>쓰레기통</label>
-            <label class="layer"><input type="checkbox" data-layer="bus" checked><span class="map-icon" data-legend-icon="bus"></span>버스정류장</label>
-            <label class="layer"><input type="checkbox" data-layer="metro" checked><span class="map-icon" data-legend-icon="metro"></span>지하철역</label>
-            <label class="layer"><input type="checkbox" data-layer="park" checked><span class="map-icon" data-legend-icon="park"></span>공원</label>
           </div>
+          <details class="advanced-layers">
+            <summary>고급 레이어</summary>
+            <div class="layer-grid">
+              <label class="layer"><input type="checkbox" data-layer="service"><span style="width:20px;border-top:2px dashed var(--trash);display:inline-block"></span>서비스 반경</label>
+              <label class="layer"><input type="checkbox" data-layer="trash"><span class="map-icon" data-legend-icon="trash"></span>쓰레기통</label>
+              <label class="layer"><input type="checkbox" data-layer="bus"><span class="map-icon" data-legend-icon="bus"></span>버스정류장</label>
+              <label class="layer"><input type="checkbox" data-layer="metro"><span class="map-icon" data-legend-icon="metro"></span>지하철역</label>
+              <label class="layer"><input type="checkbox" data-layer="park"><span class="map-icon" data-legend-icon="park"></span>공원</label>
+            </div>
+          </details>
           <div class="control-row">
             <span>기존 쓰레기통 서비스 반경</span>
             <select id="radiusSelect" aria-label="서비스 반경">
@@ -750,6 +755,10 @@
     const boundaries = window.GANGSEO_BOUNDARIES;
     const fmt = new Intl.NumberFormat("ko-KR");
     const scoreMax = Math.max(...data.results.map((d) => Number(d.priority_score)));
+    const INITIAL_TOP_N = 20;
+    const INITIAL_RANK_COUNT = 5;
+    const FACILITY_AUTO_ZOOM = 15;
+    let showAllRanks = false;
 
     const map = L.map("map", {
       preferCanvas: true,
@@ -779,11 +788,11 @@
       boundary: L.layerGroup().addTo(map),
       recommend: L.layerGroup(),
       candidate: L.layerGroup().addTo(map),
-      service: L.layerGroup().addTo(map),
-      trash: L.layerGroup().addTo(map),
-      bus: L.layerGroup().addTo(map),
-      metro: L.layerGroup().addTo(map),
-      park: L.layerGroup().addTo(map)
+      service: L.layerGroup(),
+      trash: L.layerGroup(),
+      bus: L.layerGroup(),
+      metro: L.layerGroup(),
+      park: L.layerGroup()
     };
     const highlightLayer = L.layerGroup().addTo(map);
     const outsideMaskLayer = L.layerGroup().addTo(map);
@@ -862,8 +871,8 @@
     const markerIcon = (className, html = "") => L.divIcon({
       className: "",
       html: `<div class="marker ${className} ${html ? "marker-icon" : ""}">${html}</div>`,
-      iconSize: className === "marker-rec" ? [31, 31] : html ? [25, 25] : [18, 18],
-      iconAnchor: className === "marker-rec" ? [15, 15] : html ? [12, 12] : [9, 9]
+      iconSize: className === "marker-rec" ? [31, 31] : className === "marker-trash" ? [20, 20] : html ? [25, 25] : [24, 24],
+      iconAnchor: className === "marker-rec" ? [15, 15] : className === "marker-trash" ? [10, 10] : html ? [12, 12] : [12, 12]
     });
 
     document.querySelectorAll("[data-legend-icon]").forEach((el) => {
@@ -1422,7 +1431,12 @@
       layers.candidate.clearLayers();
       buildCandidates();
       if (!dongCode) {
-        const selected = selectDefaultCandidates();
+        const selected = selectDefaultCandidates()
+          .sort((a, b) => (
+            Number(a.priorityRank || 999) - Number(b.priorityRank || 999)
+            || Number(b.candidateScore || 0) - Number(a.candidateScore || 0)
+          ))
+          .slice(0, INITIAL_TOP_N);
         currentSelectedCandidates = [];
         updateCandidateSummary(null, 0, selected.length);
         selected.forEach((d) => {
@@ -1476,12 +1490,26 @@
       });
     };
 
+    const priorityFillColor = (rank) => {
+      const value = Number(rank) || 999;
+      if (value <= 3) return "#ef4444";
+      if (value <= 7) return "#f97316";
+      if (value <= 12) return "#facc15";
+      if (value <= 16) return "#a3a3a3";
+      return "#e5e7eb";
+    };
+
     L.geoJSON(boundaries, {
-      style: {
-        color: "transparent",
-        weight: 0,
-        opacity: 0,
-        fillOpacity: 0.015
+      style: (feature) => {
+        const code = String(feature.properties.dong_code);
+        const result = data.results.find((d) => String(d.dong_code) === code);
+        return {
+          color: "transparent",
+          weight: 0,
+          opacity: 0,
+          fillColor: priorityFillColor(result?.priority_rank),
+          fillOpacity: 0.18
+        };
       },
       onEachFeature: (feature, layer) => {
         const code = String(feature.properties.dong_code);
@@ -1838,6 +1866,7 @@
           }).addTo(layers.service);
         });
         selected.bringToFront();
+        syncLayerVisibility();
         map.flyToBounds(selected.getBounds().pad(0.12), { duration: 0.65, maxZoom: 15 });
         return;
       }
@@ -1860,6 +1889,7 @@
           ["점수", Number(dong.priority_score).toFixed(2)],
           ["표시 기준", "보유 좌표 외곽선"]
         ])).addTo(highlightLayer);
+        syncLayerVisibility();
         map.flyToBounds(paddedBounds(hull), { duration: 0.65, maxZoom: 15 });
       } else {
         const center = points[0];
@@ -1872,6 +1902,7 @@
           fillColor: "#1967d2",
           fillOpacity: 0.08
         }).addTo(highlightLayer);
+        syncLayerVisibility();
         map.flyTo(center, 15, { duration: 0.65 });
       }
     };
@@ -1887,18 +1918,32 @@
       renderFacilityLayers();
       renderGangseoOutline(true);
       renderCandidateLayer();
+      syncLayerVisibility();
+    };
+
+    const facilityLayerKeys = new Set(["bus", "metro", "park"]);
+    const syncLayerVisibility = () => {
+      document.querySelectorAll("[data-layer]").forEach((input) => {
+        const key = input.dataset.layer;
+        const layer = layers[key];
+        if (!layer) return;
+        const zoomAllowsFacilities = map.getZoom() >= FACILITY_AUTO_ZOOM || Boolean(activeDongCode);
+        const shouldShow = input.checked && (!facilityLayerKeys.has(key) || zoomAllowsFacilities);
+        if (shouldShow) {
+          if (!map.hasLayer(layer)) layer.addTo(map);
+        } else if (map.hasLayer(layer)) {
+          map.removeLayer(layer);
+        }
+      });
     };
 
     document.querySelectorAll("[data-layer]").forEach((input) => {
       input.addEventListener("change", () => {
-        const layer = layers[input.dataset.layer];
-        if (input.checked) {
-          layer.addTo(map);
-        } else {
-          map.removeLayer(layer);
-        }
+        syncLayerVisibility();
       });
     });
+
+    map.on("zoomend", syncLayerVisibility);
 
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -1929,6 +1974,7 @@
     renderGangseoOutline();
     renderCandidateLayer();
     renderComplaintPanel();
+    syncLayerVisibility();
 
     document.getElementById("statTrash").textContent = fmt.format(data.trash.length);
     document.getElementById("statBus").textContent = fmt.format(data.busStops.length);
@@ -1937,10 +1983,14 @@
 
     const recByDong = new Map(data.recommendations.map((d) => [String(d.dong_code), d]));
     const rankList = document.getElementById("rankList");
-    data.results
+    const sortedRankRows = data.results
       .slice()
-      .sort((a, b) => Number(a.priority_rank) - Number(b.priority_rank))
-      .forEach((d) => {
+      .sort((a, b) => Number(a.priority_rank) - Number(b.priority_rank));
+
+    const renderRankList = () => {
+      rankList.innerHTML = "";
+      const rows = showAllRanks ? sortedRankRows : sortedRankRows.slice(0, INITIAL_RANK_COUNT);
+      rows.forEach((d) => {
         const item = document.createElement("button");
         item.className = "rank-item";
         item.type = "button";
@@ -1964,6 +2014,22 @@
         });
         rankList.appendChild(item);
       });
+      if (sortedRankRows.length > INITIAL_RANK_COUNT) {
+        const actions = document.createElement("div");
+        actions.className = "rank-actions";
+        const button = document.createElement("button");
+        button.className = "rank-toggle";
+        button.type = "button";
+        button.textContent = showAllRanks ? "상위 5개만 보기" : "전체 우선순위 보기";
+        button.addEventListener("click", () => {
+          showAllRanks = !showAllRanks;
+          renderRankList();
+        });
+        actions.appendChild(button);
+        rankList.appendChild(actions);
+      }
+    };
+    renderRankList();
   </script>
 </body>
 </html>
