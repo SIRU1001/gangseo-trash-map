@@ -604,6 +604,15 @@
       box-shadow: 0 2px 8px rgba(194, 65, 12, 0.35);
     }
 
+    .marker-candidate-muted {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(194, 65, 12, 0.46);
+      border: 2px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 1px 4px rgba(24, 39, 75, 0.22);
+    }
+
     .rank-actions {
       padding: 0 12px 12px;
     }
@@ -871,8 +880,8 @@
     const markerIcon = (className, html = "") => L.divIcon({
       className: "",
       html: `<div class="marker ${className} ${html ? "marker-icon" : ""}">${html}</div>`,
-      iconSize: className === "marker-rec" ? [31, 31] : className === "marker-trash" ? [20, 20] : html ? [25, 25] : [24, 24],
-      iconAnchor: className === "marker-rec" ? [15, 15] : className === "marker-trash" ? [10, 10] : html ? [12, 12] : [12, 12]
+      iconSize: className === "marker-rec" ? [31, 31] : className === "marker-trash" ? [20, 20] : className === "marker-candidate-muted" ? [12, 12] : html ? [25, 25] : [24, 24],
+      iconAnchor: className === "marker-rec" ? [15, 15] : className === "marker-trash" ? [10, 10] : className === "marker-candidate-muted" ? [6, 6] : html ? [12, 12] : [12, 12]
     });
 
     document.querySelectorAll("[data-legend-icon]").forEach((el) => {
@@ -1436,17 +1445,23 @@
             Number(a.priorityRank || 999) - Number(b.priorityRank || 999)
             || Number(b.candidateScore || 0) - Number(a.candidateScore || 0)
           ))
-          .slice(0, INITIAL_TOP_N);
+          .map((candidate, index) => ({
+            ...candidate,
+            defaultRank: index + 1,
+            defaultTopCandidate: index < INITIAL_TOP_N
+          }));
         currentSelectedCandidates = [];
         updateCandidateSummary(null, 0, selected.length);
         selected.forEach((d) => {
           L.marker([d.latitude, d.longitude], {
-            icon: markerIcon("marker-candidate", d.sequence || ""),
+            icon: markerIcon(d.defaultTopCandidate ? "marker-candidate" : "marker-candidate-muted", d.defaultTopCandidate ? d.sequence || "" : ""),
             pane: "candidateMarkerPane",
             bubblingMouseEvents: true
           })
             .bindPopup(popup(`${d.facilityName}`, [
               ["표시 기준", "강서구 전체 우선 후보"],
+              ["전체 후보 순위", `${d.defaultRank}위`],
+              ["화면 표시", d.defaultTopCandidate ? `TOP ${INITIAL_TOP_N} 강조 후보` : "보조 추천 후보"],
               ["후보 점수", `${Number(d.candidateScore || 0).toFixed(2)}점`],
               ["후보 유형", d.facilityType],
               ["행정동", d.dong_name],
